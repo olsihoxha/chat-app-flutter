@@ -1,6 +1,6 @@
 # tchat
 
-Chat App
+Chat App using Flutter(Dart) and firebase
 
 ## Getting Started
 
