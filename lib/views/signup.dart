@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:tchat/helper/helperfunction.dart';
 import 'package:tchat/services/auth.dart';
+import 'package:tchat/services/database.dart';
 import 'package:tchat/views/chatrooms.dart';
 import 'package:tchat/widgets/widget.dart';
 
 class SignUp extends StatefulWidget {
+  final Function toggle;
+  SignUp(this.toggle);
   @override
   _SignUpState createState() => _SignUpState();
 }
@@ -20,12 +24,20 @@ class _SignUpState extends State<SignUp> {
 
   signUp(){
       if(formKey.currentState.validate()){
+        Map<String,String> userMap={
+          "name": userNameController.text,
+          "email":emailController.text
+        };
+        HelperFunction.saveUserNameSharedPreference(userNameController.text);
+        HelperFunction.saveUserEmailSharedPreference(emailController.text);
           setState(() {
             isLoading=true;
           });
           authMethod.signUpWithEmailAndPassword(emailController.text, passwordController.text)
-              .then((value){
-                print("${value.userId}");
+              .then((value) {
+                // print("${value.userId}");
+                DatabaseMethods().uploadUserInfo(userMap);
+                HelperFunction.saveUserLoggedInSharedPreference(true);
                 Navigator.pushReplacement(context, MaterialPageRoute(
                     builder: (context)=>ChatRoom(),
                 ));
@@ -132,11 +144,19 @@ class _SignUpState extends State<SignUp> {
                       style: textFieldStyle(),
                     ),
                     SizedBox(width:6),
-                    Text("Sign In",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          decoration: TextDecoration.underline
+                    GestureDetector(
+                      onTap: (){
+                        widget.toggle();
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text("Sign In",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              decoration: TextDecoration.underline
+                          ),
+                        ),
                       ),
                     )
                   ],
