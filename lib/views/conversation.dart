@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:tchat/helper/constants.dart';
 import 'package:tchat/services/database.dart';
@@ -14,19 +16,53 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   DatabaseMethods databaseMethods=DatabaseMethods();
   TextEditingController messageController=TextEditingController();
-
+  Stream chatMessagesStream;
+  ScrollController _scrollController = ScrollController();
   Widget chatMessageList(){
-
+    Timer(
+      Duration(milliseconds: 100),
+          () => _scrollController.jumpTo(_scrollController.position.maxScrollExtent),
+    );
+      return StreamBuilder(
+          builder: (context,snapshot){
+            return snapshot.hasData ? ListView.builder(
+                controller: _scrollController,
+                itemCount: snapshot.data.docs.length,
+                itemBuilder:(context,index) {
+                  return MessageTile(snapshot.data.docs[index].data()["message"],
+                      snapshot.data.docs[index].data()["sendBy"]==Constants.myName
+                  );
+                }
+            ):Container();
+          },
+          stream: chatMessagesStream,
+      );
   }
 
   sendMessage(){
     if(messageController.text.isNotEmpty){
-      Map<String,String> messageMap={
+      Map<String,dynamic> messageMap={
         "message":messageController.text,
-        "sendBy":Constants.myName
+        "sendBy":Constants.myName,
+        "time":DateTime.now().millisecondsSinceEpoch
       };
-      databaseMethods.getConversationMessages(widget.chatRoomId, messageMap);
+      databaseMethods.addConversationMessages(widget.chatRoomId, messageMap);
+      messageController.text="";
+      Timer(
+        Duration(milliseconds: 100),
+            () => _scrollController.jumpTo(_scrollController.position.maxScrollExtent),
+      );
     }
+  }
+
+  @override
+  void initState() {
+    databaseMethods.getConversationMessages(widget.chatRoomId).then((value){
+      setState(() {
+        chatMessagesStream=value;
+      });
+    });
+    super.initState();
   }
 
   @override
@@ -37,9 +73,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
         child: Stack(
           children: [
             Container(
+              margin: EdgeInsets.only(bottom: 85),
+                child: chatMessageList()
+            ),
+            Container(
               alignment: Alignment.bottomCenter,
               child: Container(
-                color: Color(0x54FFFFFF),
+                color: Colors.grey,
                 padding: EdgeInsets.symmetric(vertical:16 ,horizontal: 24),
                 child: Row(
                   children: [
@@ -50,9 +90,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                               color: Colors.white
                           ),
                           decoration: InputDecoration(
-                            hintText: "search username...",
+                            hintText: "write message...",
                             hintStyle: TextStyle(
-                              color: Colors.white54,
+                              color: Colors.white70,
                             ),
                             border: InputBorder.none,
                           ),
@@ -60,17 +100,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     ),
                     GestureDetector(
                       onTap: (){
-                        // initiateSearch();
+                         sendMessage();
                       },
                       child: Container(
                           padding:EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0x36FFFFFF),
-                                    const Color(0x3FFFFFFF),
-                                  ]
-                              ),
+                              color: Colors.white70,
                               borderRadius: BorderRadius.circular(40)
                           ),
                           height: 40,
@@ -88,3 +123,49 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 }
+
+class MessageTile extends StatelessWidget {
+  final String message;
+  final bool isSendByMe;
+  MessageTile(this.message,this.isSendByMe);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(left: isSendByMe ?0:24,right:isSendByMe ?24:0 ),
+      margin: EdgeInsets.symmetric(vertical: 5),
+      width: MediaQuery.of(context).size.width,
+      alignment: isSendByMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 24,vertical: 16),
+        decoration: BoxDecoration(
+          borderRadius:isSendByMe ? BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+            bottomLeft: Radius.circular(30),
+          ):BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+            bottomRight: Radius.circular(30),
+          ),
+          gradient: LinearGradient(
+            colors: isSendByMe?  [
+              Color(0xff007EF4),
+              Color(0xff2A75BC)
+            ] :  [
+              Color(0x1AFFFFFF),
+              Color(0x1AFFFFFF)
+            ],
+          )
+        ),
+        child: Text(
+          message,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17
+          ),
+        ),
+      ),
+    );
+  }
+}
+
